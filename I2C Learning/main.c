@@ -37,29 +37,29 @@ void i2c_burstsend(unsigned char ucSlaveAddr, unsigned char sendData[], unsigned
 	unsigned int i;
 
 	// set the address
-	I2CMasterSlaveAddrSet(I2C0_MASTER_BASE, ucSlaveAddr, false);
+	I2CMasterSlaveAddrSet(I2C2_MASTER_BASE, ucSlaveAddr, false);
 	// send the first byte
-	I2CMasterDataPut(I2C0_MASTER_BASE, sendData[0]);
-	I2CMasterControl(I2C0_MASTER_BASE, I2C_MASTER_CMD_BURST_SEND_START);
-	while(I2CMasterBusy(I2C0_MASTER_BASE))
+	I2CMasterDataPut(I2C2_MASTER_BASE, sendData[0]);
+	I2CMasterControl(I2C2_MASTER_BASE, I2C_MASTER_CMD_BURST_SEND_START);
+	while(I2CMasterBusy(I2C2_MASTER_BASE))
 	{
 
 	}
 
 	// send the middle
 	for(i=1; i < (size - 1); i++) {
-		I2CMasterDataPut(I2C0_MASTER_BASE, sendData[i]);
-		I2CMasterControl(I2C0_MASTER_BASE, I2C_MASTER_CMD_BURST_SEND_CONT);
-		while(I2CMasterBusy(I2C0_MASTER_BASE))
+		I2CMasterDataPut(I2C2_MASTER_BASE, sendData[i]);
+		I2CMasterControl(I2C2_MASTER_BASE, I2C_MASTER_CMD_BURST_SEND_CONT);
+		while(I2CMasterBusy(I2C2_MASTER_BASE))
 		{
 
 		}
 	}
 
 	// send the last byte
-	I2CMasterDataPut(I2C0_MASTER_BASE, sendData[i]);
-	I2CMasterControl(I2C0_MASTER_BASE, I2C_MASTER_CMD_BURST_SEND_FINISH);
-	while(I2CMasterBusy(I2C0_MASTER_BASE))
+	I2CMasterDataPut(I2C2_MASTER_BASE, sendData[i]);
+	I2CMasterControl(I2C2_MASTER_BASE, I2C_MASTER_CMD_BURST_SEND_FINISH);
+	while(I2CMasterBusy(I2C2_MASTER_BASE))
 	{
 
 	}
@@ -76,17 +76,26 @@ int main(void) {
 
 	// Initialize I2C & reset to known state
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C0);
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C2);
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
-	SysCtlPeripheralReset(SYSCTL_PERIPH_I2C0);
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+	//SysCtlPeripheralReset(SYSCTL_PERIPH_I2C2);
 
 	// Set up the pins as I2C
 	GPIOPinTypeI2CSCL(GPIO_PORTB_BASE, GPIO_PIN_2);
 	GPIOPinTypeI2C(GPIO_PORTB_BASE, GPIO_PIN_3);
+	//GPIOPinTypeI2CSCL(GPIO_PORTA_BASE, GPIO_PIN_6);
+	//GPIOPinTypeI2C(GPIO_PORTA_BASE, GPIO_PIN_7);
 
 	GPIOPinConfigure(GPIO_PB2_I2C0SCL);
 	GPIOPinConfigure(GPIO_PB3_I2C0SDA);
+	//GPIOPinConfigure(GPIO_PA6_I2C1SCL);
+	//GPIOPinConfigure(GPIO_PA7_I2C1SDA);
 
 	I2CMasterInitExpClk(GPIO_PORTB_BASE, SysCtlClockGet(), false);
+	//I2CMasterInitExpClk(GPIO_PORTA_BASE, SysCtlClockGet(), false);
+
+	I2CMasterEnable(I2C0_MASTER_BASE);
 
 	// set the flash i2c address
 	I2CMasterSlaveAddrSet(I2C0_MASTER_BASE, SLAVE_ADDRESS, false); // set to false since it's a write
@@ -103,11 +112,11 @@ int main(void) {
 	I2CMasterControl(I2C0_MASTER_BASE, I2C_MASTER_CMD_BURST_SEND_CONT); // keep transmitting
 	while(I2CMasterBusy(I2C0_MASTER_BASE)) {} // delay until complete
 
-	I2CMasterDataPut(I2C0_MASTER_BASE, 0xAB); // test byte to be written
+	I2CMasterDataPut(I2C0_MASTER_BASE, 0x2E); // test byte to be written
 	I2CMasterControl(I2C0_MASTER_BASE, I2C_MASTER_CMD_BURST_SEND_FINISH);
 	while(I2CMasterBusy(I2C0_MASTER_BASE)) {} // delay until complete
 
-	SysCtlDelay(10000); // short delay to let the EEPROM complete the write
+	SysCtlDelay(500000); // short delay to let the EEPROM complete the write
 
 	// set the flash i2c address
 	I2CMasterSlaveAddrSet(I2C0_MASTER_BASE, SLAVE_ADDRESS, false); // set to false since it's a write
@@ -121,7 +130,7 @@ int main(void) {
 	while(I2CMasterBusy(I2C0_MASTER_BASE)) {} // delay until complete
 
 	I2CMasterDataPut(I2C0_MASTER_BASE, 0x00); // LSB of address on flash
-	I2CMasterControl(I2C0_MASTER_BASE, I2C_MASTER_CMD_BURST_SEND_CONT);
+	I2CMasterControl(I2C0_MASTER_BASE, I2C_MASTER_CMD_BURST_SEND_FINISH);
 	while(I2CMasterBusy(I2C0_MASTER_BASE)) {} // delay until complete
 
 	// now try to read it back
@@ -134,7 +143,7 @@ int main(void) {
 	// make sure the bus isn't busy
 	while(I2CMasterBusBusy(I2C0_MASTER_BASE)) {}
 
-	if(returnData==0xAB)
+	if(returnData==0x2E)   // quick validation check
 	{
 		GPIOPinWrite(GPIO_PORTG_BASE, GPIO_PIN_2, 0x04);
 	}
@@ -145,7 +154,7 @@ int main(void) {
 
 	while(1)
 	{
-		// loop into infinity
+// loop into infinity
 	}
 
 }
