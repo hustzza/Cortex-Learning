@@ -28,6 +28,9 @@ __error__(char *pcFilename, unsigned long ulLine)
 }
 #endif
 
+// VARIABLES
+volatile unsigned long returnData = 0;
+
 // if we need to send more than a single byte, use this
 void i2c_burstsend(unsigned char ucSlaveAddr, unsigned char sendData[], unsigned char size)
 {
@@ -63,9 +66,6 @@ void i2c_burstsend(unsigned char ucSlaveAddr, unsigned char sendData[], unsigned
 }
 
 int main(void) {
-	
-	unsigned long ulDataRx[2]; // i know I'm only going to get 2 bytes back from the SHT15
-	unsigned long ulIndex;
 
 	// Set up the system clock, 16Mhz
 	SysCtlClockSet(SYSCTL_SYSDIV_4|SYSCTL_USE_PLL|SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN);
@@ -75,7 +75,9 @@ int main(void) {
 	GPIOPinTypeGPIOOutput(GPIO_PORTG_BASE, GPIO_PIN_2);
 
 	// Initialize I2C & reset to known state
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C0);
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+	SysCtlPeripheralReset(SYSCTL_PERIPH_I2C0);
 
 	// Set up the pins as I2C
 	GPIOPinTypeI2CSCL(GPIO_PORTB_BASE, GPIO_PIN_2);
@@ -84,42 +86,66 @@ int main(void) {
 	GPIOPinConfigure(GPIO_PB2_I2C0SCL);
 	GPIOPinConfigure(GPIO_PB3_I2C0SDA);
 
-	SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C0);
-	SysCtlPeripheralReset(SYSCTL_PERIPH_I2C0);
-
 	I2CMasterInitExpClk(GPIO_PORTB_BASE, SysCtlClockGet(), false);
+
+	// set the flash i2c address
+	I2CMasterSlaveAddrSet(I2C0_MASTER_BASE, SLAVE_ADDRESS, false); // set to false since it's a write
+	I2CMasterDataPut(I2C0_MASTER_BASE, 0x00);	// MSB of address on flash
+
+	// make sure the bus isn't busy
+	while(I2CMasterBusBusy(I2C0_MASTER_BASE)) {}
+
+	// start transmit
+	I2CMasterControl(I2C0_MASTER_BASE, I2C_MASTER_CMD_BURST_SEND_START);
+	while(I2CMasterBusy(I2C0_MASTER_BASE)) {} // delay until complete
+
+	I2CMasterDataPut(I2C0_MASTER_BASE, 0x00); // LSB of address on flash
+	I2CMasterControl(I2C0_MASTER_BASE, I2C_MASTER_CMD_BURST_SEND_CONT); // keep transmitting
+	while(I2CMasterBusy(I2C0_MASTER_BASE)) {} // delay until complete
+
+	I2CMasterDataPut(I2C0_MASTER_BASE, 0xAB); // test byte to be written
+	I2CMasterControl(I2C0_MASTER_BASE, I2C_MASTER_CMD_BURST_SEND_FINISH);
+	while(I2CMasterBusy(I2C0_MASTER_BASE)) {} // delay until complete
+
+	SysCtlDelay(10000); // short delay to let the EEPROM complete the write
+
+	// set the flash i2c address
+	I2CMasterSlaveAddrSet(I2C0_MASTER_BASE, SLAVE_ADDRESS, false); // set to false since it's a write
+	I2CMasterDataPut(I2C0_MASTER_BASE, 0x00);	// MSB of address on flash
+
+	// make sure the bus isn't busy
+	while(I2CMasterBusBusy(I2C0_MASTER_BASE)) {}
+
+	// start transmit
+	I2CMasterControl(I2C0_MASTER_BASE, I2C_MASTER_CMD_BURST_SEND_START);
+	while(I2CMasterBusy(I2C0_MASTER_BASE)) {} // delay until complete
+
+	I2CMasterDataPut(I2C0_MASTER_BASE, 0x00); // LSB of address on flash
+	I2CMasterControl(I2C0_MASTER_BASE, I2C_MASTER_CMD_BURST_SEND_CONT);
+	while(I2CMasterBusy(I2C0_MASTER_BASE)) {} // delay until complete
+
+	// now try to read it back
+	// set the flash i2c address
+	I2CMasterSlaveAddrSet(I2C0_MASTER_BASE, SLAVE_ADDRESS, true); // set to true since it's a read
+	while(I2CMasterBusy(I2C0_MASTER_BASE)) {} // delay until complete
+	I2CMasterControl(I2C0_MASTER_BASE, I2C_MASTER_CMD_SINGLE_RECEIVE);
+	returnData = I2CMasterDataGet(I2C0_MASTER_BASE);
+
+	// make sure the bus isn't busy
+	while(I2CMasterBusBusy(I2C0_MASTER_BASE)) {}
+
+	if(returnData==0xAB)
+	{
+		GPIOPinWrite(GPIO_PORTG_BASE, GPIO_PIN_2, 0x04);
+	}
+	else
+	{
+		GPIOPinWrite(GPIO_PORTG_BASE, GPIO_PIN_2, 0x00);
+	}
 
 	while(1)
 	{
-		// set the sensor address
-		I2CMasterSlaveAddrSet(I2C0_MASTER_BASE, SLAVE_ADDRESS, false);
-
-		// make sure the bus isn't busy
-		while(I2CMasterBusBusy(I2C0_MASTER_BASE))
-		{
-
-		}
-
-		// transmit command
-		I2CMasterDataPut(I2C0_MASTER_BASE, 0x00);
-		I2CMasterControl(I2C0_MASTER_BASE, I2C_MASTER_CMD_SINGLE_SEND);
-		// if master is busy then wait
-		while(I2CMasterBusy(I2C0_MASTER_BASE))
-		{
-
-		}
-
-		// set the sensor address with command
-		I2CMasterSlaveAddrSet(I2C0_MASTER_BASE, SLAVE_ADDRESS, true);
-
-		for(ulIndex = 0; ulIndex < 2; ulIndex++)
-		{
-			// Set up to receive first byte
-			I2CMasterControl(I2C0_MASTER_BASE, I2C_MASTER_CMD_SINGLE_RECEIVE);
-
-			// Grab the data from the master
-			ulDataRx[ulIndex] = I2CMasterDataGet(I2C0_MASTER_BASE);
-		}
-		SysCtlDelay(100000);  // short delay
+		// loop into infinity
 	}
+
 }
