@@ -58,8 +58,6 @@ void InitConsole(void)
 
 int main(void) {
 	
-	volatile unsigned long returnData[2]; // i know i only get 2 bytes back
-
 	// Set up the system clock, 16Mhz
 	SysCtlClockSet(SYSCTL_SYSDIV_4|SYSCTL_USE_PLL|SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN);
 
