@@ -29,6 +29,8 @@ __error__(char *pcFilename, unsigned long ulLine)
 }
 #endif
 
+// handler if switch 2 is pressed
+// when pressed it changes which LED flashes (color)
 void GPIOFIntHandler(void)
 {
 	GPIOPinIntClear(GPIO_PORTF_BASE, GPIO_PIN_0);
@@ -49,6 +51,8 @@ void GPIOFIntHandler(void)
 
 }
 
+// timer handler
+// just flashes the current LED based on the timer
 void Timer0IntHandler(void)
 {
 	TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
@@ -65,7 +69,8 @@ void Timer0IntHandler(void)
 
 int main(void) {
 	
-	FPULazyStackingEnable();
+	FPULazyStackingEnable(); // allow the interrupt handler to use the FPU at the expense of more stack
+	FPUEnable();
 
 	SysCtlClockSet(SYSCTL_SYSDIV_5|SYSCTL_USE_PLL|SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN); // Clock speed 40Mhz (400/2/5)
 
@@ -82,21 +87,21 @@ int main(void) {
 	GPIOPinTypeGPIOInput(GPIO_PORTF_BASE, GPIO_PIN_0); // SW1 set as input
 	GPIOIntTypeSet(GPIO_PORTF_BASE, GPIO_PIN_0, GPIO_FALLING_EDGE); // set interrupt to falling edge
 
-	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
-	TimerConfigure(TIMER0_BASE, TIMER_CFG_32_BIT_PER);
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0); // enable the timer peripheral
+	TimerConfigure(TIMER0_BASE, TIMER_CFG_32_BIT_PER); // 32 bit timer
 
 	TimerLoadSet(TIMER0_BASE, TIMER_A, SysCtlClockGet()-1);  // set to 1 full second
 
-	IntEnable(INT_TIMER0A);
+	IntEnable(INT_TIMER0A); // enable all the interrupts
 	IntEnable(INT_GPIOF);
 	TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
 	GPIOPinIntEnable(GPIO_PORTF_BASE, GPIO_PIN_0);
 	IntMasterEnable();
 
-	TimerEnable(TIMER0_BASE, TIMER_A);
+	TimerEnable(TIMER0_BASE, TIMER_A); // start the timer
 
 	while(1)
 	{
-
+		// loop into infinity
 	}
 }
